@@ -4,7 +4,7 @@ use image::*;
 use ndarray::prelude::*;
 // Machine learning
 use linfa::prelude::*;
-use linfa_clustering::AppxDbscan;
+use linfa_clustering::{AppxDbscan, Dbscan};
 // Path navigation and error handling
 use std::error::Error;
 use std::path::Path;
@@ -16,8 +16,9 @@ fn main() {
 
     // Parameter for the DBSCAN algorithm
     let scaling_factor = 0.2;
-    let tolerance = 20.0;
-    let tarp_pixels = get_number_of_tarp_pixels(photo, scaling_factor, tolerance).unwrap();
+    let tolerance = 50.0;
+    let min_points = 1000;
+    let tarp_pixels = get_number_of_tarp_pixels(photo, scaling_factor, tolerance, min_points).unwrap();
 
     let est_tarp_area = area_from_pixels(drone_height, tarp_pixels, scaling_factor);
 
@@ -36,6 +37,7 @@ fn get_number_of_tarp_pixels(
     photo: &str,
     scaling_factor: f64,
     tolerance: f64,
+    min_points: usize
 ) -> Result<usize, Box<dyn Error>> {
     let path = Path::new("photos/original").join(&photo);
     let img = image::open(path)?; //.to_luma();
@@ -68,10 +70,9 @@ fn get_number_of_tarp_pixels(
     }
     println!("Done converting image");
 
-    let min_points = 500;
-    let clusters = AppxDbscan::params(min_points)
+    let clusters = Dbscan::params(min_points)
         .tolerance(tolerance)
-        .transform(&array.slice(s![.., 2..]))?;
+        .transform(&array.slice(s![.., ..]))?;
 
     let mut count = 0;
     for i in 0..array.shape()[0] {
@@ -97,7 +98,7 @@ fn get_number_of_tarp_pixels(
         }
     }
 
-    let mod_photo = "DBSCAN_".to_owned() + photo;
+    let mod_photo = "DBSCAN_STD_".to_owned() + photo;
     let save_path = Path::new("photos/modified").join(mod_photo);
     new_img.save(save_path)?;
 
